@@ -1,0 +1,33 @@
+name: Deploy from private runner
+on:
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Existing scanned ECR tag from the image build workflow
+        required: true
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: cloudpoker-aws-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    environment: aws-lab
+    # Your trusted runner must have private VPC connectivity or an allowlisted public /32.
+    runs-on: [self-hosted, linux, cloudpoker]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - name: Update application
+        env:
+          AWS_REGION: ${{ vars.AWS_REGION }}
+          CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+          IMAGE: ${{ vars.ECR_REPOSITORY }}:${{ inputs.image_tag }}
+        run: |
+          aws eks update-kubeconfig --region "$AWS_REGION" --name "$CLUSTER_NAME"
+          bash scripts/update-image.sh

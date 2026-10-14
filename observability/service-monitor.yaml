@@ -1,0 +1,43 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cloudpoker
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  namespaceSelector:
+    matchNames: [cloudpoker]
+  selector:
+    matchLabels:
+      app: cloudpoker
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 15s
+---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cloudpoker
+  namespace: monitoring
+  labels:
+    release: monitoring
+spec:
+  groups:
+    - name: cloudpoker
+      rules:
+        - alert: CloudPokerTargetDown
+          expr: up{namespace="cloudpoker"} == 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: CloudPoker metrics endpoint has been unavailable for two minutes
+        - alert: CloudPokerHighRequestErrors
+          expr: rate(cloudpoker_errors_total[5m]) / clamp_min(rate(cloudpoker_requests_total[5m]), 0.001) > 0.10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: More than 10 percent of requests return errors (including client errors)

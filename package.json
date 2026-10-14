@@ -1,0 +1,12 @@
+{
+  "name": "cloudpoker-aws-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "start": "node app/server.js",
+    "test": "node --test tests/*.test.js",
+    "check": "node --check app/server.js && node --check app/poker.js && node --check app/public/app.js"
+  }
+}

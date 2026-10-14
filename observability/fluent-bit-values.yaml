@@ -1,0 +1,43 @@
+# Optional: an existing Splunk Enterprise/Cloud HEC receiver is required.
+# Pin a reviewed fluent-bit chart version at install time.
+env:
+  - name: SPLUNK_HEC_TOKEN
+    valueFrom:
+      secretKeyRef:
+        name: splunk-hec
+        key: token
+  - name: SPLUNK_HOST
+    valueFrom:
+      secretKeyRef:
+        name: splunk-hec
+        key: host
+  - name: SPLUNK_PORT
+    valueFrom:
+      secretKeyRef:
+        name: splunk-hec
+        key: port
+config:
+  inputs: |
+    [INPUT]
+        Name tail
+        Path /var/log/containers/*_cloudpoker_app-*.log
+        multiline.parser docker, cri
+        Tag kube.*
+        Mem_Buf_Limit 5MB
+        Skip_Long_Lines On
+  filters: |
+    [FILTER]
+        Name kubernetes
+        Match kube.*
+        Merge_Log On
+        Keep_Log Off
+  outputs: |
+    [OUTPUT]
+        Name splunk
+        Match kube.*
+        Host ${SPLUNK_HOST}
+        Port ${SPLUNK_PORT}
+        Splunk_Token ${SPLUNK_HEC_TOKEN}
+        TLS On
+        TLS.Verify On
+        Retry_Limit 5

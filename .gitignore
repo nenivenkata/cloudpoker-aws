@@ -1,0 +1,15 @@
+.env
+node_modules/
+**/.terraform/
+**/*.tfstate*
+**/*.tfvars
+!**/*.tfvars.example
+**/tfplan*
+**/crash.log
+*.pem
+*.key
+*.zip
+.lab/
+security/*.local.*
+**/backend.local.hcl
+ansible/inventory.local.ini

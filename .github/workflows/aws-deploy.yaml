@@ -1,0 +1,50 @@
+name: Build and publish AWS image
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+concurrency:
+  group: cloudpoker-aws-deploy
+  cancel-in-progress: false
+jobs:
+  deploy:
+    # Configure environment aws-lab to permit main only.
+    if: github.ref == 'refs/heads/main'
+    environment: aws-lab
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+      ECR_REPOSITORY: ${{ vars.ECR_REPOSITORY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: npm run check && npm test
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+      - uses: aws-actions/amazon-ecr-login@v2
+      - name: Build image
+        env:
+          IMAGE: ${{ vars.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker build -t "$IMAGE" .
+      - uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ vars.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+          severity: CRITICAL,HIGH
+          exit-code: '1'
+          ignore-unfixed: true
+      - name: Push image
+        env:
+          IMAGE: ${{ vars.ECR_REPOSITORY }}:${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
+        run: docker push "$IMAGE"
+      - name: Deployment instructions
+        # Hosted-runner IPs are not allowlisted in the cluster API.
+        # This workflow intentionally stops at publishing the image until a private runner exists.
+        run: |
+          echo "Image published: $ECR_REPOSITORY:$GITHUB_SHA-$GITHUB_RUN_ID-$GITHUB_RUN_ATTEMPT"
+          echo "For deployment, run the private-runner workflow or scripts/update-image.sh from your allowlisted laptop."

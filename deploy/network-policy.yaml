@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: cloudpoker-isolation
+  namespace: cloudpoker
+spec:
+  podSelector:
+    matchLabels:
+      app: cloudpoker
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: monitoring
+      ports:
+        - protocol: TCP
+          port: 3000
+  # This increment has no external dependencies; deny all app pod egress.
+  egress: []
+  # kubectl port-forward is a control-plane tunnel. It is not an ingress rule.
